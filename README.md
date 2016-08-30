@@ -53,6 +53,64 @@ Add the following to your Gemfile:
 
 # Usage
 
+## Rails
+
+Create a migration for the parent table. This table won't contain any data
+itself, but gives us the skeleton that the other tables will inherit, and will
+be used by the model for queries.
+
+```ruby
+class AddEventsTable
+  def change
+    create_table :events do |t|
+      t.string    :name
+      t.timestamp :event_at
+      t.timestamps
+    end
+
+    add_index :events, [:name, :event_at]
+  end
+end
+```
+
+Once that table exists, set up a config to tell SlidingPartition how you want it partitioned:
+
+```ruby
+# config/sliding_partitions.rb
+
+SlidingPartition(:events) do |partition|
+  partition.inherited_table    = "events"   # defaults to the name provided before the block
+  partition.time_column        = :event_at
+  partition.suffix             = "%Y%m%d"   # A strftime-formatted string, will be appended to all partition table names
+  partition.partition_interval = 1.month
+  partition.retention_interval = 6.months
+end
+```
+
+Now, have SlidingPartition manage these tables.
+
+```ruby
+SlidingPartition.initialize!
+```
+
+Finally, you'll want SlidingPartition to run periodically, to ensure the next
+period's table is created ahead of time. We recommend that you run it several
+times leading up to the next date, it does no harm to have the empty table
+sitting around for future use, in case something fails and it takes it awhile
+to fix it. We also recommend you put this in a background job, and trigger it
+using clockwork or some other recurring job spawner. SlidingPartition comes
+with an ActiveJob Job for this purpose.
+
+```ruby
+module Clockwork
+
+  every 1.day do
+    SlidingPartition::RotateJob.perform_later
+  end
+
+end
+```
+
 # Tests
 
 To test, run:
