@@ -79,11 +79,11 @@ Once that table exists, set up a config to tell SlidingPartition how you want it
 # config/sliding_partitions.rb
 
 SlidingPartition(:events) do |partition|
-  partition.inherited_table    = "events"   # defaults to the name provided before the block
-  partition.time_column        = :event_at
-  partition.suffix             = "%Y%m%d"   # A strftime-formatted string, will be appended to all partition table names
-  partition.partition_interval = 1.month
-  partition.retention_interval = 6.months
+  partition.inherited_table_name = "events"   # defaults to the name provided before the block
+  partition.time_column          = :event_at
+  partition.suffix               = "%Y%m%d"   # A strftime-formatted string, will be appended to all partition table names
+  partition.partition_interval   = 1.month
+  partition.retention_interval   = 6.months
 end
 ```
 

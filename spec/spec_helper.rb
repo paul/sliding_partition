@@ -10,6 +10,10 @@ end
 require "pry"
 require "pry-byebug"
 require "pry-state"
+
+require "awesome_print"
+
+
 require "sliding_partition"
 
 Dir[File.join(File.dirname(__FILE__), "support/shared_contexts/**/*.rb")].each { |file| require file }
