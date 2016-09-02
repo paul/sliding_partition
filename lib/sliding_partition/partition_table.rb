@@ -3,47 +3,40 @@ require "rounding"
 
 module SlidingPartition
   class PartitionTable
-    def initialize(for_time:, partition_config:)
-      @timestamp, @config = for_time, partition_config
+    extend Forwardable
+
+    attr_reader :timestamp, :definition
+
+    delegate %i[ inherited_table_name time_column suffix
+                 partition_interval retention_interval ] => :definition
+
+    def initialize(for_time:, definition:)
+      @timestamp, @definition = for_time, definition
     end
 
     def table_name
       [
-        @config.inherited_table_name,
-        floored_timestamp.strftime(@config.suffix)
+        inherited_table_name,
+        timestamp_floor.strftime(suffix)
       ].join("_")
     end
 
-    def ddl
-      <<-SQL
-        CREATE TABLE #{table_name} (
-          LIKE #{@config.inherited_table_name} INCLUDING ALL
-        ) INHERITS (#{@config.inherited_table_name});
-
-        ALTER TABLE #{table_name}
-        ADD CHECK (
-          #{@config.time_column} >= '#{floored_timestamp.to_s(:db)}' AND
-          #{@config.time_column} <  '#{next_partition_table.floored_timestamp.to_s(:db)}'
-        )
-      SQL
-    end
-
-    def floored_timestamp
+    def timestamp_floor
       # rounding doesn't handle months correctly, do it ourselves
       if partition_interval = 1.month
-        @timestamp.change(day: 1, hour: 0)
+        @timestamp.beginning_of_month
       else
         @timestamp.floor_to(partition_interval)
       end
     end
 
-    def next_partition_table
-      PartitionTable.new(for_time: @timestamp + @config.partition_interval,
-                         partition_config: @config)
+    def timestamp_ceiling
+      if partition_interval = 1.month
+        @timestamp.end_of_month + 1
+      else
+        @timestamp.ceiling_to(partition_interval)
+      end
     end
 
-    def partition_interval
-      @config.partition_interval
-    end
   end
 end

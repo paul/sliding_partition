@@ -8,8 +8,15 @@ require "awesome_print"
 
 RSpec.describe "SlidingPartition" do
 
+  Master = Class.new(ActiveRecord::Base)
+
   let(:master_connection) do
-    ActiveRecord::Base.establish_connection connection_config.merge(database: "postgres", schema_search_path: "public")
+    Master.establish_connection connection_config.merge(database: "postgres", schema_search_path: "public")
+    Master.connection
+  end
+
+  let(:connection) do
+    ActiveRecord::Base.establish_connection(connection_config)
     ActiveRecord::Base.connection
   end
 
@@ -39,8 +46,8 @@ RSpec.describe "SlidingPartition" do
 
         result     varchar,
 
-        created_at timestamp NOT NULL,
-        updated_at timestamp NOT NULL
+        created_at timestamp NOT NULL DEFAULT NOW(),
+        updated_at timestamp NOT NULL DEFAULT NOW()
       );
 
       CREATE INDEX ON test_events (event_at, name)
@@ -48,23 +55,25 @@ RSpec.describe "SlidingPartition" do
   end
 
   after do
-    master_connection.tables.sort.reverse.each { |t| master_connection.drop_table(t) }
+    connection.tables.sort.reverse.each { |t| connection.drop_table(t) }
+    connection.disconnect!
     master_connection.drop_database("sliding_partition_test")
   end
 
-  let(:connection) { ActiveRecord::Base.connection }
   let(:tables) { connection.tables }
 
-  describe "#initialize!" do
-    it "should create the partitioned tables" do
-      partition = SlidingPartition::Partition.new(:test_events) do |partition|
-        partition.time_column        = :event_at
-        partition.suffix             = "%Y%m%d"
-        partition.partition_interval = 1.month
-        partition.retention_interval = 6.months
-      end
+  let(:definition) do
+    SlidingPartition::Definition.new(:test_events) do |config|
+      config.time_column        = :event_at
+      config.suffix             = "%Y%m%d"
+      config.partition_interval = 1.month
+      config.retention_interval = 6.months
+    end
+  end
 
-      partition.initialize!(time: Time.new(2016, 01, 10))
+  describe "setting up initial tables" do
+    it "should create the partitioned tables" do
+      definition.setup!(at: Time.new(2016, 01, 10))
 
       %w[
         test_events_20150701
@@ -84,30 +93,52 @@ RSpec.describe "SlidingPartition" do
     end
   end
 
-  describe "#rotate!" do
-    let(:partition) do
-      SlidingPartition::Partition.new(:test_events) do |partition|
-        partition.time_column        = :event_at
-        partition.suffix             = "%Y%m%d"
-        partition.partition_interval = 1.month
-        partition.retention_interval = 6.months
-      end
-    end
-
+  describe "rotating the partition tables" do
     before do
-      partition.initialize!(time: Time.new(2016, 01, 10))
+      definition.setup!(at: Time.new(2016, 01, 10))
     end
 
     it "should create the next partition, and drop the previous" do
       expect(tables).to     include("test_events_20150701")
       expect(tables).to_not include("test_events_20160301")
 
-      partition.rotate!(time: Time.new(2016, 02, 10))
+      definition.rotate!(at: Time.new(2016, 02, 10))
 
       tables = connection.tables # reload the tables
 
       expect(tables).to_not include("test_events_20150701")
       expect(tables).to     include("test_events_20160301")
+    end
+  end
+
+  describe "inserting data" do
+    before do
+      definition.setup!(at: Time.new(2016, 01, 10))
+    end
+
+    def insert(timestamp)
+      connection.insert <<-SQL
+        INSERT INTO test_events (name, event_at, result)
+        VALUES ('test', '#{timestamp.to_s(:db)}', 'success')
+      SQL
+    end
+
+    it "should put it into the right table" do
+      insert(Time.new(2016, 1, 20))
+      insert(Time.new(2016, 2, 20))
+
+      expect(
+        connection.select_value("SELECT COUNT(*) FROM test_events")
+      ).to eq 2
+
+      expect(
+        connection.select_value("SELECT COUNT(*) FROM test_events_20160101")
+      ).to eq 1
+
+      expect(
+        connection.select_value("SELECT COUNT(*) FROM test_events_20160201")
+      ).to eq 1
+
     end
   end
 end
