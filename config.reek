@@ -1,0 +1,60 @@
+# Please don't modify this file, without first checking if it makes sense to
+# adopt for most other Kapost projects. Ideally, we would keep these files as
+# similar as possible to ease maintainability. Instead, open a PR in the
+# codeclimate-common repo at https://github.com/kapost/codeclimate-common
+
+UtilityFunction:
+  public_methods_only: true
+  exclude:
+  - perform # Exclude Sidekiq/ActiveJob "perform" methods, which are stateless.
+
+TooManyStatements:
+  exclude:
+  - initialize
+  max_statements: 8
+
+RepeatedConditional:
+  max_ifs: 4
+
+LongParameterList:
+  exclude:
+  - initialize
+
+# Dislikes method names ending in a number (Like `test2`, etc...) But, these
+# are the names of actual AWS services, and it is common to have the variables
+# named the same.
+UncommunicativeMethodName:
+  accept:
+    - s3
+    - ec2
+UncommunicativeVariableName:
+  accept:
+    - s3
+    - ec2
+
+# AS::Subscriber objects tend to rely heavily on `event` and `payload`, so its
+# hard to avoid "Feature Envy", but is prefectly readable.
+FeatureEnvy:
+  exclude:
+    - !ruby/regexp /Subscriber/
+
+"app/controllers":
+  NestedIterators:
+    max_allowed_nesting: 2
+  UnusedPrivateMethod:
+    enabled: false
+"app/helpers":
+  UtilityFunction:
+    enabled: false
+"spec/support":
+  UtilityFunction:
+    enabled: false
+
+# This one just makes sure the Class/Module has a comment. Dumb.
+IrresponsibleModule:
+  enabled: false
+
+# Oftentimes it makes sense to namespace groups of versioned components "V2", "V1"
+UncommunicativeModuleName:
+  accept:
+    - !ruby/regexp /V[0-9]$/

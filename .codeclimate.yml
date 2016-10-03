@@ -1,0 +1,56 @@
+# Please don't modify this file, without first checking if it makes sense to
+# adopt for most other Kapost projects. Ideally, we would keep these files as
+# similar as possible to ease maintainability. Instead, open a PR in the
+# codeclimate-common repo at https://github.com/kapost/codeclimate-common
+
+---
+engines:
+  rubocop:
+    enabled: true
+  bundler-audit:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+        - ruby
+        - javascript
+    exclude_paths:
+      - "spec/"
+  reek:
+    enabled: true
+  shellcheck:
+    enabled: true
+  brakeman:
+    enabled: true
+  fixme:
+    enabled: true
+  markdownlint:
+    enabled: true
+  csslint:
+    enabled: true
+  scss-lint:
+    enabled: true
+  coffeelint:
+    enabled: true
+  eslint:
+    enabled: true
+  # Uncomment this one if your app has an npm-shrinkwrap
+  # nodesecurity:
+  #   enabled: true
+
+ratings:
+  paths:
+    - app/**
+    - lib/**
+    - "**/*.rb"
+    - "**/*.js"
+    - "**/*.coffee"
+    - Gemfile.lock # For bundler-audit
+
+exclude_paths:
+  - "**/vendor/**/*"
+  - "**/node_modules/**/*"
+  - "spec/fixtures/**/*"
+
+
