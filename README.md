@@ -78,8 +78,7 @@ Once that table exists, set up a config to tell SlidingPartition how you want it
 ```ruby
 # config/sliding_partitions.rb
 
-SlidingPartition(:events) do |partition|
-  partition.inherited_table_name = "events"   # defaults to the name provided before the block
+SlidingPartition.define(Event) do |partition|
   partition.time_column          = :event_at
   partition.suffix               = "%Y%m%d"   # A strftime-formatted string, will be appended to all partition table names
   partition.partition_interval   = 1.month
@@ -105,7 +104,7 @@ with an ActiveJob Job for this purpose.
 module Clockwork
 
   every 1.day do
-    SlidingPartition::RotateJob.perform_later
+    SlidingPartition::Job.perform_later
   end
 
 end
