@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sliding_partition (0.1.0)
+    sliding_partition (0.2.0)
       activerecord (>= 4.2.0, <= 6.0.0)
       pg
       rounding
@@ -20,7 +20,7 @@ GEM
       i18n (~> 0.7)
       minitest (~> 5.1)
       tzinfo (~> 1.1)
-    arel (7.1.1)
+    arel (7.1.2)
     ast (2.3.0)
     awesome_print (1.7.0)
     byebug (9.0.5)
@@ -65,7 +65,7 @@ GEM
       thor (~> 0.19)
       thor_plus (~> 3.0)
       versionaire (~> 1.1)
-    minitest (5.9.0)
+    minitest (5.9.1)
     nenv (0.3.0)
     notiffany (0.1.1)
       nenv (~> 0.1)
@@ -152,4 +152,4 @@ DEPENDENCIES
   terminal-notifier
 
 BUNDLED WITH
-   1.12.5
+   1.13.1
