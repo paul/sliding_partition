@@ -10,6 +10,8 @@ RSpec.describe "SlidingPartition" do
 
   Master = Class.new(ActiveRecord::Base)
 
+  TestEvent = Class.new(ActiveRecord::Base)
+
   let(:master_connection) do
     Master.establish_connection connection_config.merge(database: "postgres", schema_search_path: "public")
     Master.connection
@@ -63,7 +65,7 @@ RSpec.describe "SlidingPartition" do
   let(:tables) { connection.tables }
 
   let(:definition) do
-    SlidingPartition::Definition.new(:test_events) do |config|
+    SlidingPartition::Definition.new(TestEvent) do |config|
       config.time_column        = :event_at
       config.suffix             = "%Y%m%d"
       config.partition_interval = 1.month

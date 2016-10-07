@@ -15,6 +15,8 @@
 - [Requirements](#requirements)
 - [Setup](#setup)
 - [Usage](#usage)
+  - [Rails](#rails)
+- [config/sliding_partitions.rb](#configsliding_partitionsrb)
 - [Tests](#tests)
 - [Versioning](#versioning)
 - [Code of Conduct](#code-of-conduct)

@@ -3,20 +3,24 @@
 require "sliding_partition/identity"
 require "sliding_partition/definition"
 
-require "sliding_partition/engine" if defined?(Rails)
+require "sliding_partition/railtie" if defined?(Rails)
 
 module SlidingPartition
 
   def self.define(model, &config)
-    parititions << Definition.new(model, &config)
+    parititions[model] = Definition.new(model, &config)
   end
 
   def self.setup!
-    parititions.each { |p| p.setup! }
+    parititions.values.each { |p| p.setup! }
+  end
+
+  def self.migrate!
+    parititions.values.each { |p| p.migrate! }
   end
 
   def self.parititions
-    @@parititions ||= []
+    @@parititions ||= {}
   end
 
 end

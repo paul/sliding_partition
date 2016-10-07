@@ -25,6 +25,13 @@ module SlidingPartition
       update_trigger_function!
     end
 
+    def migrate!
+      clone_new_table!
+      setup!
+      swap_tables!
+      migrate_data!(from: retired_table, to: parent_table)
+    end
+
     def create_tables!
       partitions.each do |partition|
         create_partition_table(partition) unless partition_table_exists?(partition)
@@ -34,6 +41,36 @@ module SlidingPartition
     def expire_tables!
       candidate_tables.each do |table|
         drop_partition_table(table) unless partitions.map(&:table_name).include?(table)
+      end
+    end
+
+    def clone_new_table!
+      connection.execute <<-SQL
+        CREATE TABLE #{new_table} (
+          LIKE #{parent_table} INCLUDING ALL
+        );
+      SQL
+    end
+
+    def swap_tables!
+      connection.execute <<-SQL
+        BEGIN;
+        ALTER TABLE #{parent_table} RENAME TO #{retired_table};
+        ALTER TABLE #{new_table} RENAME TO #{parent_table};
+        COMMIT;
+      SQL
+      create_trigger!
+    end
+
+    def migrate_data!(from:, to:)
+      partitions.each do |partition|
+        connection.execute <<-SQL
+        INSERT INTO #{to} (
+          SELECT * FROM #{from}
+          WHERE #{time_column} >= TIMESTAMP '#{partition.timestamp_floor.to_s(:db)}'
+            AND #{time_column} <  TIMESTAMP '#{partition.timestamp_ceiling.to_s(:db)}'
+        );
+        SQL
       end
     end
 
@@ -57,15 +94,18 @@ module SlidingPartition
 
     def create_trigger!
       connection.execute(<<-SQL)
+      BEGIN;
+      DROP TRIGGER IF EXISTS #{inherited_table_name}_trigger ON #{inherited_table_name};
       CREATE TRIGGER #{inherited_table_name}_trigger
           BEFORE INSERT ON #{inherited_table_name}
           FOR EACH ROW EXECUTE PROCEDURE #{inherited_table_name}_insert_trigger();
+      COMMIT;
       SQL
 
     end
 
     def trigger_function_sql
-      conditions = partitions.map do |partition|
+      conditions = partitions.reverse_each.map do |partition|
         <<-SQL
         ( NEW.#{time_column} >= TIMESTAMP '#{partition.timestamp_floor.to_s(:db)}' AND
           NEW.#{time_column} <  TIMESTAMP '#{partition.timestamp_ceiling.to_s(:db)}'
@@ -78,6 +118,8 @@ module SlidingPartition
       RETURNS TRIGGER AS $$
       BEGIN
           IF #{conditions.join("\n ELSIF ")}
+          ELSIF (NEW.#{time_column} < TIMESTAMP '#{partitions.first_partition_timestamp.to_s(:db)}')
+            THEN RETURN NULL; -- Just discard pre-historic rows
           ELSE
               RAISE EXCEPTION 'Date out of range.  Fix the measurement_insert_trigger() function!';
           END IF;
@@ -117,7 +159,19 @@ module SlidingPartition
     end
 
     def connection
-      ActiveRecord::Base.connection
+      definition.model.connection
+    end
+
+    def parent_table
+      @new_table_name || inherited_table_name
+    end
+
+    def new_table
+      parent_table + "_new"
+    end
+
+    def retired_table
+      parent_table + "_retired"
     end
 
   end

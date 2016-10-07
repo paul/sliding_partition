@@ -16,16 +16,19 @@ module SlidingPartition
     end
 
     def tables
-      first_partition_timestamp = time - retention_interval
-      last_partition_timestamp = time + partition_interval
-
-      (first_partition_timestamp.to_i...last_partition_timestamp.to_i).step(partition_interval).map do |partition_time|
+      first_ts = time - retention_interval
+      last_ts = time + partition_interval
+      (first_ts.to_i...last_ts.to_i).step(partition_interval).map do |partition_time|
         PartitionTable.new(for_time: Time.at(partition_time), definition: definition)
       end
     end
 
     def each(&block)
       tables.each(&block)
+    end
+
+    def first_partition_timestamp
+      tables.first.timestamp_floor
     end
 
   end

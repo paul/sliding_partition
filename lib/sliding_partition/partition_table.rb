@@ -24,7 +24,7 @@ module SlidingPartition
     def timestamp_floor
       # rounding doesn't handle months correctly, do it ourselves
       if partition_interval = 1.month
-        @timestamp.beginning_of_month
+        @timestamp.beginning_of_month.floor_to(1.day)
       else
         @timestamp.floor_to(partition_interval)
       end

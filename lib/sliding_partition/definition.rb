@@ -5,11 +5,13 @@ require_relative "table_collection"
 module SlidingPartition
   class Definition
 
+    attr_reader :model
+
     attr_accessor :inherited_table_name, :time_column, :suffix,
                   :partition_interval, :retention_interval
 
-    def initialize(name)
-      @inherited_table_name = name
+    def initialize(model)
+      @model = model
       yield self if block_given?
     end
 
@@ -21,8 +23,16 @@ module SlidingPartition
       PartitionDDLChanger.new(self, at).rotate!
     end
 
+    def migrate!(at: Time.now)
+      PartitionDDLChanger.new(self, at).migrate!
+    end
+
     def partitions(at: Time.now)
       TableCollection.new(definition: self, at_time: at)
+    end
+
+    def inherited_table_name
+      @inherited_table_name ||= model.table_name
     end
 
   end
