@@ -15,6 +15,10 @@ module SlidingPartition
     parititions.values.each { |p| p.setup! }
   end
 
+  def self.rotate!
+    parititions.values.each { |p| p.rotate! }
+  end
+
   def self.migrate!
     parititions.values.each { |p| p.migrate! }
   end
