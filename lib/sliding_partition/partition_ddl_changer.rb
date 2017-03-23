@@ -14,22 +14,28 @@ module SlidingPartition
     end
 
     def setup!
-      create_tables!
-      update_trigger_function!
-      create_trigger!
+      connection.transaction do
+        create_tables!
+        update_trigger_function!
+        create_trigger!
+      end
     end
 
     def rotate!
-      create_tables!
-      expire_tables!
-      update_trigger_function!
+      connection.transaction do
+        create_tables!
+        expire_tables!
+        update_trigger_function!
+      end
     end
 
     def migrate!
-      clone_new_table!
-      setup!
-      swap_tables!
-      migrate_data!(from: retired_table, to: parent_table)
+      connection.transaction do
+        clone_new_table!
+        swap_tables!
+        setup!
+        migrate_data!(from: retired_table, to: parent_table)
+      end
     end
 
     def create_tables!
@@ -54,10 +60,8 @@ module SlidingPartition
 
     def swap_tables!
       connection.execute <<-SQL
-        BEGIN;
         ALTER TABLE #{parent_table} RENAME TO #{retired_table};
         ALTER TABLE #{new_table} RENAME TO #{parent_table};
-        COMMIT;
       SQL
       create_trigger!
     end
@@ -94,12 +98,10 @@ module SlidingPartition
 
     def create_trigger!
       connection.execute(<<-SQL)
-      BEGIN;
       DROP TRIGGER IF EXISTS #{inherited_table_name}_trigger ON #{inherited_table_name};
       CREATE TRIGGER #{inherited_table_name}_trigger
           BEFORE INSERT ON #{inherited_table_name}
           FOR EACH ROW EXECUTE PROCEDURE #{inherited_table_name}_insert_trigger();
-      COMMIT;
       SQL
 
     end
