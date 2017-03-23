@@ -32,6 +32,7 @@ module SlidingPartition
     def migrate!
       connection.transaction do
         clone_new_table!
+        update_trigger_function!
         swap_tables!
         setup!
         migrate_data!(from: retired_table, to: parent_table)
