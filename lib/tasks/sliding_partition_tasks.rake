@@ -12,4 +12,9 @@ namespace :partition do
   task :migrate => :environment do
     SlidingPartition.migrate!
   end
+
+  desc "Copy missing data"
+  task :final_copy => :environment do
+    SlidingPartition.final_copy!
+  end
 end

@@ -23,12 +23,16 @@ module SlidingPartition
       PartitionDDLChanger.new(self, at).rotate!
     end
 
-    def migrate!(at: Time.now)
-      PartitionDDLChanger.new(self, at).migrate!
+    def migrate!(at: Time.now, quiet: false)
+      PartitionDDLChanger.new(self, at, quiet: quiet).migrate!
     end
 
     def partitions(at: Time.now)
       TableCollection.new(definition: self, at_time: at)
+    end
+
+    def final_copy!(at: Time.now, quiet: false)
+      PartitionDDLChanger.new(self, at, quiet: quiet).migrate!
     end
 
     def inherited_table_name

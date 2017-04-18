@@ -1,23 +1,27 @@
+require "sliding_partition/util"
 
 module SlidingPartition
   class PartitionDDLChanger
     extend Forwardable
+
+    include SlidingPartition::Util
 
     attr_reader :definition, :time, :partitions
 
     delegate %i[ inherited_table_name time_column suffix
                  partition_interval retention_interval ] => :definition
 
-    def initialize(definition, time)
+    def initialize(definition, time, quiet: false)
       @definition, @time = definition, time
       @partitions = @definition.partitions(at: time)
+      @quiet = quiet
     end
 
     def setup!
       connection.transaction do
-        create_tables!
-        update_trigger_function!
-        create_trigger!
+        say_with_time("Creating tables") { create_tables! }
+        say_with_time("Updating trigger function") { update_trigger_function! }
+        say_with_time("Creating trigger") { create_trigger! }
       end
     end
 
@@ -31,12 +35,19 @@ module SlidingPartition
 
     def migrate!
       connection.transaction do
-        clone_new_table!
-        update_trigger_function!
-        swap_tables!
-        setup!
-        migrate_data!(from: retired_table, to: parent_table)
+        say_with_time("Cloning table") { clone_new_table! }
+        say_with_time("Creating #{partitions.tables.size} partition tables") { create_tables! }
+        say_with_time("Migrating data") { migrate_data!(from: parent_table, to: new_table) }
+        say_with_time("Swapping retired & new tables") { swap_tables! }
       end
+    end
+
+    def final_copy!
+      connection.execute(<<-SQL)
+        INSERT INTO #{parent_table} (
+          SELECT * FROM #{retired_table} WHERE id NOT IN (SELECT id FROM #{parent_table})
+        )
+      SQL
     end
 
     def create_tables!
@@ -64,19 +75,14 @@ module SlidingPartition
         ALTER TABLE #{parent_table} RENAME TO #{retired_table};
         ALTER TABLE #{new_table} RENAME TO #{parent_table};
       SQL
+      update_trigger_function!
       create_trigger!
     end
 
     def migrate_data!(from:, to:)
-      partitions.each do |partition|
-        connection.execute <<-SQL
-        INSERT INTO #{to} (
-          SELECT * FROM #{from}
-          WHERE #{time_column} >= TIMESTAMP '#{partition.timestamp_floor.to_s(:db)}'
-            AND #{time_column} <  TIMESTAMP '#{partition.timestamp_ceiling.to_s(:db)}'
-        );
-        SQL
-      end
+      connection.execute <<-SQL
+        INSERT INTO #{to} ( SELECT * FROM #{from} )
+      SQL
     end
 
     protected

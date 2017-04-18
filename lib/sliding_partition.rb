@@ -23,6 +23,10 @@ module SlidingPartition
     parititions.values.each { |p| p.migrate! }
   end
 
+  def self.final_copy!
+    parititions.values.each { |p| p.final_copy! }
+  end
+
   def self.parititions
     @@parititions ||= {}
   end
