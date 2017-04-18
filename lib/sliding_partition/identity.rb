@@ -12,7 +12,7 @@ module SlidingPartition
     end
 
     def self.version
-      "0.3.0"
+      "0.5.0"
     end
 
     def self.version_label
