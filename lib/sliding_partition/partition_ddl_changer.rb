@@ -35,24 +35,27 @@ module SlidingPartition
 
     def migrate!
       connection.transaction do
+        @new_table_name = new_table
         say_with_time("Cloning table") { clone_new_table! }
         say_with_time("Creating #{partitions.tables.size} partition tables") { create_tables! }
-        say_with_time("Migrating data") { migrate_data!(from: parent_table, to: new_table) }
+        say_with_time("Updating trigger function") { update_trigger_function! }
+        say_with_time("Creating trigger") { create_trigger! }
+        say_with_time("Migrating data") { migrate_data!(from: inherited_table_name, to: new_table) }
         say_with_time("Swapping retired & new tables") { swap_tables! }
       end
     end
 
     def final_copy!
       connection.execute(<<-SQL)
-        INSERT INTO #{parent_table} (
-          SELECT * FROM #{retired_table} WHERE id NOT IN (SELECT id FROM #{parent_table})
+        INSERT INTO #{inherited_table_name} (
+          SELECT * FROM #{retired_table} WHERE id NOT IN (SELECT id FROM #{inherited_table_name})
         )
       SQL
     end
 
     def create_tables!
       partitions.each do |partition|
-        create_partition_table(partition) unless partition_table_exists?(partition)
+        create_partition_table(partition)
       end
     end
 
@@ -65,18 +68,18 @@ module SlidingPartition
     def clone_new_table!
       connection.execute <<-SQL
         CREATE TABLE #{new_table} (
-          LIKE #{parent_table} INCLUDING ALL
+          LIKE #{inherited_table_name} INCLUDING ALL
         );
       SQL
     end
 
     def swap_tables!
       connection.execute <<-SQL
-        ALTER TABLE #{parent_table} RENAME TO #{retired_table};
-        ALTER TABLE #{new_table} RENAME TO #{parent_table};
+        ALTER TABLE #{inherited_table_name} RENAME TO #{retired_table};
+        ALTER TABLE #{new_table} RENAME TO #{inherited_table_name};
       SQL
-      update_trigger_function!
-      create_trigger!
+      # update_trigger_function!
+      # create_trigger!
     end
 
     def migrate_data!(from:, to:)
@@ -105,9 +108,9 @@ module SlidingPartition
 
     def create_trigger!
       connection.execute(<<-SQL)
-      DROP TRIGGER IF EXISTS #{inherited_table_name}_trigger ON #{inherited_table_name};
+      DROP TRIGGER IF EXISTS #{inherited_table_name}_trigger ON #{parent_table};
       CREATE TRIGGER #{inherited_table_name}_trigger
-          BEFORE INSERT ON #{inherited_table_name}
+          BEFORE INSERT ON #{parent_table}
           FOR EACH ROW EXECUTE PROCEDURE #{inherited_table_name}_insert_trigger();
       SQL
 
@@ -130,7 +133,7 @@ module SlidingPartition
           ELSIF (NEW.#{time_column} < TIMESTAMP '#{partitions.first_partition_timestamp.to_s(:db)}')
             THEN RETURN NULL; -- Just discard pre-historic rows
           ELSE
-              RAISE EXCEPTION 'Date out of range.  Fix the measurement_insert_trigger() function!';
+              RAISE EXCEPTION 'Date out of range.  Fix the #{inherited_table_name}_insert_trigger() function!';
           END IF;
           RETURN NULL;
       END;
@@ -143,7 +146,7 @@ module SlidingPartition
       <<-SQL
       CREATE TABLE #{partition.table_name} (
         LIKE #{inherited_table_name} INCLUDING ALL
-      ) INHERITS (#{inherited_table_name});
+      ) INHERITS (#{parent_table});
 
       ALTER TABLE #{partition.table_name}
       ADD CHECK (
@@ -176,11 +179,11 @@ module SlidingPartition
     end
 
     def new_table
-      parent_table + "_new"
+      inherited_table_name + "_new"
     end
 
     def retired_table
-      parent_table + "_retired"
+      inherited_table_name + "_retired"
     end
 
   end
