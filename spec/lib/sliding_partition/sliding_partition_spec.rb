@@ -8,14 +8,7 @@ require "awesome_print"
 
 RSpec.describe "SlidingPartition" do
 
-  Master = Class.new(ActiveRecord::Base)
-
   TestEvent = Class.new(ActiveRecord::Base)
-
-  let(:master_connection) do
-    Master.establish_connection connection_config.merge(database: "postgres", schema_search_path: "public")
-    Master.connection
-  end
 
   let(:connection) do
     ActiveRecord::Base.establish_connection(connection_config)
@@ -30,16 +23,6 @@ RSpec.describe "SlidingPartition" do
   end
 
   before do
-    begin
-      master_connection.create_database("sliding_partition_test")
-    rescue ActiveRecord::StatementInvalid => error
-      if /database .* already exists/ === error.message
-        nil
-      else
-        raise
-      end
-    end
-
     connection.execute <<-SQL
       CREATE TABLE IF NOT EXISTS test_events (
         id         serial    PRIMARY KEY,
@@ -59,7 +42,6 @@ RSpec.describe "SlidingPartition" do
   after do
     connection.tables.sort.reverse.each { |t| connection.drop_table(t) }
     connection.disconnect!
-    master_connection.drop_database("sliding_partition_test")
   end
 
   let(:tables) { connection.tables }
