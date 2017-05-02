@@ -8,10 +8,12 @@ module SlidingPartition
     attr_reader :model
 
     attr_accessor :inherited_table_name, :time_column, :suffix,
-                  :partition_interval, :retention_interval
+                  :partition_interval, :retention_interval,
+                  :lead_time
 
     def initialize(model)
       @model = model
+      set_defaults
       yield self if block_given?
     end
 
@@ -37,6 +39,12 @@ module SlidingPartition
 
     def inherited_table_name
       @inherited_table_name ||= model.table_name
+    end
+
+    private
+
+    def set_defaults
+      @lead_time = 0
     end
 
   end

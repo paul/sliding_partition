@@ -9,7 +9,7 @@ module SlidingPartition
     attr_reader :definition, :time
 
     delegate %i[ inherited_table_name time_column suffix
-                 partition_interval retention_interval ] => :definition
+                 partition_interval retention_interval lead_time ] => :definition
 
     def initialize(definition:, at_time:)
       @definition, @time = definition, at_time
@@ -36,7 +36,7 @@ module SlidingPartition
     end
 
     def last_timestamp
-      time + partition_interval
+      time + lead_time + partition_interval
     end
 
     def first_partition_timestamp
