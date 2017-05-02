@@ -8,6 +8,7 @@ RSpec.describe "Migrating data" do
   before :all do
     ENV["TZ"] = "UTC"
     ActiveRecord::Base.establish_connection(adapter: "postgresql", database: "sliding_partition_test")
+    ActiveRecord::Base.logger = Logger.new("log/test.log")
     ActiveRecord::Base.connection.execute(<<-SQL)
       DROP TABLE IF EXISTS events;
       CREATE TABLE events (
@@ -19,6 +20,9 @@ RSpec.describe "Migrating data" do
   end
 
   around do |example|
+    ActiveRecord::Base.logger.debug "\n"
+    ActiveRecord::Base.logger.debug example.metadata[:full_description]
+
     ActiveRecord::Base.transaction do
       example.run
       raise ActiveRecord::Rollback
