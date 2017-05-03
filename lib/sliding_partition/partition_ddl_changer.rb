@@ -91,7 +91,7 @@ module SlidingPartition
     protected
 
     def create_partition_table(partition)
-      connection.execute(create_table_sql(partition))
+      connection.execute(create_table_sql(partition)) unless partition_table_exists?(partition)
     end
 
     def drop_partition_table(table)
