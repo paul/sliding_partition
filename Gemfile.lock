@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sliding_partition (0.6.0)
+    sliding_partition (0.6.1)
       activerecord (>= 4.2.0, <= 6.0.0)
       pg
       rounding
