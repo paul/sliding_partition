@@ -61,7 +61,10 @@ module SlidingPartition
 
     def expire_tables!
       candidate_tables.each do |table|
-        drop_partition_table(table) unless partitions.map(&:table_name).include?(table)
+        unless partitions.map(&:table_name).include?(table)
+          execute_callback(table)
+          drop_partition_table(table)
+        end
       end
     end
 
@@ -92,6 +95,10 @@ module SlidingPartition
 
     def create_partition_table(partition)
       connection.execute(create_table_sql(partition)) unless partition_table_exists?(partition)
+    end
+
+    def execute_callback(table)
+      definition.before_rotate.call(table)
     end
 
     def drop_partition_table(table)

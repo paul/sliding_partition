@@ -122,7 +122,35 @@ RSpec.describe "SlidingPartition" do
       expect(
         connection.select_value("SELECT COUNT(*) FROM test_events_20160201")
       ).to eq 1
-
     end
   end
+
+  describe "before_rotate callback" do
+    context "when set" do
+      let(:tables) { [] }
+      let(:callback) { lambda { |table| tables << table } }
+
+      let(:definition) do
+        SlidingPartition::Definition.new(TestEvent) do |config|
+          config.time_column        = :event_at
+          config.suffix             = "%Y%m%d"
+          config.partition_interval = 1.month
+          config.retention_interval = 6.months
+
+          config.before_rotate = callback
+        end
+      end
+
+      before do
+        definition.setup!
+      end
+
+      it "should execute the callback before deleting the table" do
+        expect(tables).to be_empty
+        definition.rotate!(at: 1.month.from_now)
+        expect(tables).to_not be_empty
+      end
+    end
+  end
+
 end

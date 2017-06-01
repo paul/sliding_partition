@@ -9,7 +9,7 @@ module SlidingPartition
 
     attr_accessor :inherited_table_name, :time_column, :suffix,
                   :partition_interval, :retention_interval,
-                  :lead_time
+                  :lead_time, :before_rotate
 
     def initialize(model)
       @model = model
@@ -45,6 +45,7 @@ module SlidingPartition
 
     def set_defaults
       @lead_time = 0
+      @before_rotate = lambda { |_| }
     end
 
   end
