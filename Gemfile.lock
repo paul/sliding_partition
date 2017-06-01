@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sliding_partition (0.6.1)
+    sliding_partition (0.7.0)
       activerecord (>= 4.2.0, <= 6.0.0)
       pg
       rounding
@@ -163,4 +163,4 @@ DEPENDENCIES
   terminal-notifier
 
 BUNDLED WITH
-   1.14.6
+   1.15.0
